@@ -10,16 +10,48 @@ export default defineConfig({
       editLink: {
         baseUrl: "https://github.com/Weburz/terox/edit/main/docs",
       },
-      social: {
-        github: "https://github.com/Weburz/terox",
-        discord: "https://discord.gg/QeYqwyxBhR",
-        email: "mailto:contact@weburz.com",
-        facebook: "https://www.facebook.com/Weburz",
-        instagram: "https://www.instagram.com/weburzit",
-        linkedin: "https://www.linkedin.com/company/weburz",
-        youtube: "https://www.youtube.com/@Weburz",
-        twitter: "https://x.com/weburz",
-      },
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/Weburz/terox",
+        },
+        {
+          icon: "discord",
+          label: "Discord",
+          href: "https://discord.gg/QeYqwyxBhR",
+        },
+        {
+          icon: "email",
+          label: "Email",
+          href: "mailto:contact@weburz.com",
+        },
+        {
+          icon: "facebook",
+          label: "Facebook",
+          href: "https://www.facebook.com/Weburz",
+        },
+        {
+          icon: "instagram",
+          label: "Instagram",
+          href: "https://www.instagram.com/weburzit",
+        },
+        {
+          icon: "linkedin",
+          label: "LinkedIn",
+          href: "https://www.linkedin.com/company/weburz",
+        },
+        {
+          icon: "youtube",
+          label: "YouTube",
+          href: "https://www.youtube.com/@Weburz",
+        },
+        {
+          icon: "x.com",
+          label: "Twitter",
+          href: "https://x.com/weburz",
+        },
+      ],
       lastUpdated: true,
       head: [
         {

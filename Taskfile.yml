@@ -35,6 +35,7 @@ tasks:
     cmds:
       - task: install
       - task: docs:setup
+      - pre-commit install --install-hooks
 
   build:
     desc: Build the binary for the current system architecture.
