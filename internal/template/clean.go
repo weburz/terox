@@ -19,7 +19,7 @@ func Clean() error {
 	// Read the contents of the template directory to check for templates
 	if templates, err := os.ReadDir(templateDir); err != nil {
 		return fmt.Errorf(
-			"Failed to find any templates at %s: %w",
+			"failed to find any templates at %s: %w",
 			templateDir,
 			err,
 		)
@@ -30,7 +30,7 @@ func Clean() error {
 			fmt.Printf("%s\n", template.Name())
 			if err := os.RemoveAll(path); err != nil {
 				return fmt.Errorf(
-					"Failed to remove %s: %w",
+					"failed to remove %s: %w",
 					template.Name(),
 					err,
 				)

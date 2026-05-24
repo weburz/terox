@@ -74,7 +74,7 @@ func downloadTemplate(repo string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("download %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("bad server response: %d", resp.StatusCode)
@@ -100,7 +100,7 @@ func extractTemplate(zipfile, dest string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open zip: %w", err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	var topLevelFolder string
 	for _, f := range r.File {
