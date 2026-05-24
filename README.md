@@ -1,5 +1,13 @@
 # Terox
 
+[![Release](https://img.shields.io/github/v/release/weburz/terox?style=flat-square&color=fdd32a&labelColor=2c3c4e)](https://github.com/weburz/terox/releases/latest)
+[![License](https://img.shields.io/github/license/weburz/terox?style=flat-square&color=fdd32a&labelColor=2c3c4e)](./LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/weburz/terox?style=flat-square&logo=go&logoColor=white&color=fdd32a&labelColor=2c3c4e)](./go.mod)
+[![QA Checks](https://img.shields.io/github/actions/workflow/status/weburz/terox/qa-checks.yml?branch=main&style=flat-square&label=QA&labelColor=2c3c4e)](https://github.com/weburz/terox/actions/workflows/qa-checks.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/weburz/terox?style=flat-square)](https://goreportcard.com/report/github.com/weburz/terox)
+
+![Terox mascot: a Go gopher in a hard hat building wooden scaffolding around template files with {{.variable}} tokens floating in the scene](./assets/goterox.png)
+
 Terox is a small, cross-platform CLI for scaffolding new projects from
 templates. Point it at a GitHub repository or a local directory, answer a few
 prompts, and Terox renders a ready-to-edit project into the output folder of
