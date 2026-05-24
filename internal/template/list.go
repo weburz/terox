@@ -18,7 +18,7 @@ func List() error {
 	// Check if any template exists locally, if yes, list them to STDOUT
 	if templates, err := os.ReadDir(templateDir); err != nil {
 		return fmt.Errorf(
-			"Failed to read the contents of %s directory: %w",
+			"failed to read the contents of %s directory: %w",
 			templateDir,
 			err,
 		)

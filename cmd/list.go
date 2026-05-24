@@ -34,8 +34,8 @@ var listCmd = &cobra.Command{
 	Example: listExample,
 	Long:    listCmdLongHelp,
 	Args:    cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		template.List()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return template.List()
 	},
 }
 
