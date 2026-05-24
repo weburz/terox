@@ -1,0 +1,323 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    name: Compute release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      git_commit: ${{ steps.meta.outputs.git_commit }}
+      git_version: ${{ steps.meta.outputs.git_version }}
+      build_date: ${{ steps.meta.outputs.build_date }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          GIT_COMMIT="$(git rev-parse --short HEAD)"
+          GIT_VERSION="$(git --version | awk '{print $3}')"
+          BUILD_DATE="$(date -u '+%Y-%m-%d')"
+
+          IS_PRERELEASE=false
+          case "$TAG" in
+            *-alpha*|*-beta*|*-rc*) IS_PRERELEASE=true ;;
+          esac
+
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "git_commit=$GIT_COMMIT"
+            echo "git_version=$GIT_VERSION"
+            echo "build_date=$BUILD_DATE"
+            echo "is_prerelease=$IS_PRERELEASE"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.os }}/${{ matrix.arch }}
+    needs: meta
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+          - os: windows
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+          TAG: ${{ needs.meta.outputs.tag }}
+          GIT_COMMIT: ${{ needs.meta.outputs.git_commit }}
+          GIT_VERSION: ${{ needs.meta.outputs.git_version }}
+          BUILD_DATE: ${{ needs.meta.outputs.build_date }}
+        run: |
+          BIN_NAME=terox
+          if [ "$GOOS" = "windows" ]; then
+            BIN_NAME=terox.exe
+          fi
+
+          mkdir -p dist
+          go build \
+            -trimpath \
+            -ldflags "\
+              -s -w \
+              -X github.com/weburz/terox/internal/version.version=${TAG} \
+              -X github.com/weburz/terox/internal/version.gitVersion=${GIT_VERSION} \
+              -X github.com/weburz/terox/internal/version.gitCommit=${GIT_COMMIT} \
+              -X github.com/weburz/terox/internal/version.buildDate=${BUILD_DATE}" \
+            -o "dist/${BIN_NAME}"
+
+      - name: Package archive
+        id: archive
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          ARCHIVE_BASE="terox_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}"
+          cd dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            zip "../${ARCHIVE_BASE}.zip" terox.exe
+            echo "name=${ARCHIVE_BASE}.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar -czf "../${ARCHIVE_BASE}.tar.gz" terox
+            echo "name=${ARCHIVE_BASE}.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: ${{ steps.archive.outputs.name }}
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    name: Create release
+    needs: [meta, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > checksums.txt
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.meta.outputs.is_prerelease }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v${TAG#v}" \
+            --generate-notes \
+            $PRERELEASE_FLAG \
+            dist/*
+
+  publish-homebrew:
+    name: Update Homebrew tap
+    needs: [meta, release]
+    if: needs.meta.outputs.is_prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch release archive checksums
+        id: shas
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          for plat in darwin_amd64 darwin_arm64 linux_amd64 linux_arm64; do
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/terox_${VERSION}_${plat}.tar.gz"
+            sha="$(curl -fsSL "$url" | sha256sum | awk '{print $1}')"
+            echo "${plat}=${sha}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Generate formula
+        env:
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          SHA_DARWIN_AMD64: ${{ steps.shas.outputs.darwin_amd64 }}
+          SHA_DARWIN_ARM64: ${{ steps.shas.outputs.darwin_arm64 }}
+          SHA_LINUX_AMD64: ${{ steps.shas.outputs.linux_amd64 }}
+          SHA_LINUX_ARM64: ${{ steps.shas.outputs.linux_arm64 }}
+        run: |
+          cat > terox.rb <<EOF
+          class Terox < Formula
+            desc "Project generator built in Go"
+            homepage "https://github.com/${REPO}"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_darwin_arm64.tar.gz"
+                sha256 "${SHA_DARWIN_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_darwin_amd64.tar.gz"
+                sha256 "${SHA_DARWIN_AMD64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_linux_arm64.tar.gz"
+                sha256 "${SHA_LINUX_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_linux_amd64.tar.gz"
+                sha256 "${SHA_LINUX_AMD64}"
+              end
+            end
+
+            def install
+              bin.install "terox"
+            end
+
+            test do
+              assert_match "Terox Build Information", shell_output("#{bin}/terox version")
+            end
+          end
+          EOF
+
+      - uses: actions/checkout@v4
+        with:
+          repository: weburz/homebrew-tap
+          path: tap
+          token: ${{ secrets.TAP_BUCKET_TOKEN }}
+
+      - name: Commit and push formula
+        working-directory: tap
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          mkdir -p Formula
+          mv ../terox.rb Formula/terox.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/terox.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged, nothing to push."
+            exit 0
+          fi
+          git commit -m "terox ${VERSION}"
+          git push
+
+  publish-scoop:
+    name: Update Scoop bucket
+    needs: [meta, release]
+    if: needs.meta.outputs.is_prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch release archive checksums
+        id: shas
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          for arch in amd64 arm64; do
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/terox_${VERSION}_windows_${arch}.zip"
+            sha="$(curl -fsSL "$url" | sha256sum | awk '{print $1}')"
+            echo "windows_${arch}=${sha}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Generate manifest
+        env:
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          SHA_AMD64: ${{ steps.shas.outputs.windows_amd64 }}
+          SHA_ARM64: ${{ steps.shas.outputs.windows_arm64 }}
+        run: |
+          cat > terox.json <<EOF
+          {
+            "version": "${VERSION}",
+            "description": "Project generator built in Go",
+            "homepage": "https://github.com/${REPO}",
+            "license": "MIT",
+            "architecture": {
+              "64bit": {
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_windows_amd64.zip",
+                "hash": "${SHA_AMD64}",
+                "bin": "terox.exe"
+              },
+              "arm64": {
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/terox_${VERSION}_windows_arm64.zip",
+                "hash": "${SHA_ARM64}",
+                "bin": "terox.exe"
+              }
+            },
+            "checkver": "github",
+            "autoupdate": {
+              "architecture": {
+                "64bit": {
+                  "url": "https://github.com/${REPO}/releases/download/v\$version/terox_\$version_windows_amd64.zip"
+                },
+                "arm64": {
+                  "url": "https://github.com/${REPO}/releases/download/v\$version/terox_\$version_windows_arm64.zip"
+                }
+              }
+            }
+          }
+          EOF
+
+      - uses: actions/checkout@v4
+        with:
+          repository: weburz/scoop-bucket
+          path: bucket
+          token: ${{ secrets.TAP_BUCKET_TOKEN }}
+
+      - name: Commit and push manifest
+        working-directory: bucket
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          mkdir -p bucket
+          mv ../terox.json bucket/terox.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/terox.json
+          if git diff --cached --quiet; then
+            echo "Manifest unchanged, nothing to push."
+            exit 0
+          fi
+          git commit -m "terox ${VERSION}"
+          git push
