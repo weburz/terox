@@ -10,15 +10,36 @@ the target machine.
 
 ## Quickstart
 
-Install (Go 1.23+):
+Install Terox using whichever method matches your platform.
+
+**macOS / Linux (Homebrew):**
+
+```bash
+brew install weburz/tap/terox
+```
+
+**Windows (Scoop):**
+
+```powershell
+scoop bucket add weburz https://github.com/weburz/scoop-bucket
+scoop install weburz/terox
+```
+
+**Direct binary download:**
+
+Grab the archive for your platform from the
+[latest release](https://github.com/weburz/terox/releases/latest),
+extract it, and move the `terox` binary somewhere on your `PATH`.
+
+**From source (Go 1.23+):**
 
 ```bash
 go install github.com/weburz/terox@latest
 ```
 
-> **Heads up:** make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is on
-> your `PATH` or the `terox` command will not be found. Prebuilt binaries
-> for all platforms are coming via GoReleaser — see the
+> **Heads up:** with `go install`, make sure `$(go env GOPATH)/bin`
+> (usually `~/go/bin`) is on your `PATH` or the `terox` command will not be
+> found. See the
 > [installation docs](https://terox.weburz.com/getting-started/installation)
 > for the full setup.
 
