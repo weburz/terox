@@ -1,2 +1,6 @@
-.astro
+.nuxt
+.output
+.data
+node_modules
+dist
 pnpm-lock.yaml

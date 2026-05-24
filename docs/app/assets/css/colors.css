@@ -1,0 +1,28 @@
+/* Weburz brand palettes — mirrors weburz/web and tech.weburz.com */
+@theme static {
+  /* BurzBlue */
+  --color-burzblue-50: #f5f7fa;
+  --color-burzblue-100: #eaeef4;
+  --color-burzblue-200: #d0dbe7;
+  --color-burzblue-300: #a3b8cc;
+  --color-burzblue-400: #7799b9;
+  --color-burzblue-500: #557ca2;
+  --color-burzblue-600: #426287;
+  --color-burzblue-700: #37506d;
+  --color-burzblue-800: #30455c;
+  --color-burzblue-900: #2c3c4e;
+  --color-burzblue-950: #1f2937;
+
+  /* BurzYellow */
+  --color-burzyellow-50: #fefce8;
+  --color-burzyellow-100: #fff8cf;
+  --color-burzyellow-200: #fff3b3;
+  --color-burzyellow-300: #feea7d;
+  --color-burzyellow-400: #fde047;
+  --color-burzyellow-500: #fdd32a;
+  --color-burzyellow-600: #fcc800;
+  --color-burzyellow-700: #efb100;
+  --color-burzyellow-800: #d08700;
+  --color-burzyellow-900: #a65f00;
+  --color-burzyellow-950: #733e0a;
+}

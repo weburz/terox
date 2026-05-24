@@ -6,11 +6,25 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+      - id: no-commit-to-branch
+
+  - repo: local
+    hooks:
+      - id: docs-eslint
+        name: lint docs (eslint via pnpm)
+        language: system
+        # nuxt prepare regenerates .nuxt/ (including eslint.config.mjs)
+        # which the project's eslint config imports. Without it, eslint
+        # fails on a fresh checkout or after `task clean`.
+        entry: bash -c 'cd docs && pnpm --silent exec nuxt prepare && pnpm --silent lint'
+        pass_filenames: false
+        files: ^docs/.*\.(vue|ts|js|mjs|cjs)$
 
   - repo: https://github.com/Weburz/crisp
     rev: v1.0.0
     hooks:
       - id: crisp
+        stages: [commit-msg]
         name: lint git-commit messages
 
   - repo: https://github.com/golangci/golangci-lint

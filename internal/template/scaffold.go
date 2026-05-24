@@ -12,175 +12,157 @@ import (
 	"github.com/adrg/xdg"
 )
 
-// The base directory where the templates will be stored locally
 var templateDir = filepath.Join(xdg.DataHome, "terox")
 
-/**
- * Scaffold - Scaffold the project by download the template (if necessary)
- *
- * Parameters:
- * None
- *
- * Returns:
- * A wrapped error if any is raised by the underlying wrapping function.
- */
-func Scaffold(repo string) error {
-	// Check if the template already exists locally
-	parts := strings.Split(repo, "/")
-	owner := parts[0]
-	repository := parts[1]
-	dir := filepath.Join(templateDir, owner, repository)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		fmt.Printf("Template not found locally...downloading\n")
-
-		// Download the template from GitHub
-		f, err := downloadTemplate(repo)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		defer os.Remove(f)
-
-		// Extract the downloaded zipball to the expected destination
-		if err := extractTemplate(f, templateDir); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("Error checking the template path: %w", err)
+// Cache resolves a "owner/repo" string to a local template directory,
+// downloading and extracting the zipball if not already cached.
+// When refresh is true, any existing cached copy is removed first so the
+// template is re-downloaded.
+// Returns the absolute path to the cached template root.
+func Cache(repo string, refresh bool) (string, error) {
+	owner, repository, err := splitRepo(repo)
+	if err != nil {
+		return "", err
 	}
 
-	fmt.Printf("Template found locally at: %s\n", dir)
+	// GitHub lowercases owner/repo in zipball folder names, so the cached
+	// path is the lowercased version.
+	dir := filepath.Join(templateDir, strings.ToLower(owner), strings.ToLower(repository))
 
-	return nil
+	if refresh {
+		if err := os.RemoveAll(dir); err != nil {
+			return "", fmt.Errorf("refresh cache for %s: %w", repo, err)
+		}
+	} else {
+		if _, err := os.Stat(dir); err == nil {
+			return dir, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("stat template path %s: %w", dir, err)
+		}
+	}
+
+	if refresh {
+		fmt.Printf("Refreshing cache; downloading %s...\n", repo)
+	} else {
+		fmt.Printf("Template not found locally; downloading %s...\n", repo)
+	}
+	zipPath, err := downloadTemplate(repo)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = os.Remove(zipPath) }()
+
+	finalDest, err := extractTemplate(zipPath, templateDir)
+	if err != nil {
+		return "", err
+	}
+	return finalDest, nil
 }
 
-/**
- * downloadTemplate - Download the template contents from the GitHub repository.
- *
- * Parameters:
- * repo (string): The GitHub repository's URL to fetch the template from.
- *
- * Returns:
- * A wrapped error if any were raised during the downloading process.
- */
+func splitRepo(repo string) (string, string, error) {
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("template ref must be 'owner/repo', got %q", repo)
+	}
+	return parts[0], parts[1], nil
+}
+
 func downloadTemplate(repo string) (string, error) {
-	// Create the URL to download the zipball from
 	url := fmt.Sprintf("https://api.github.com/repos/%s/zipball", repo)
 
-	// TODO: Configure the client to make authenticated requests too to fetch
-	// templates from private repositories
-	// Create the client to make a GET request with
-	client := &http.Client{}
-	resp, err := client.Get(url)
+	resp, err := http.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("Failed to download the template to: %w", err)
+		return "", fmt.Errorf("download %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Bad server response: %d", resp.StatusCode)
+		return "", fmt.Errorf("bad server response: %d", resp.StatusCode)
 	}
 
 	tempFile, err := os.CreateTemp("", "terox-*.zip")
 	if err != nil {
-		return "", fmt.Errorf("Failed to create the template zipball: %w", err)
+		return "", fmt.Errorf("create temp zip: %w", err)
 	}
-	defer tempFile.Close()
 
 	if _, err := io.Copy(tempFile, resp.Body); err != nil {
-		return "", fmt.Errorf("Failed to write the zipball: %w", err)
+		_ = tempFile.Close()
+		return "", fmt.Errorf("write zip: %w", err)
 	}
-
+	if err := tempFile.Close(); err != nil {
+		return "", fmt.Errorf("close zip: %w", err)
+	}
 	return tempFile.Name(), nil
 }
 
-/**
- * Extract the downloaded zipfile.
- *
- * Parameters:
- * zipfile (string): The path to the (downloaded) zipfile to download it from.
- * dest (string): The destination path to extract the zipped contents to.
- *
- * Returns:
- * A wrapped error (if any was raised) during the extraction procedure.
- */
-func extractTemplate(zipfile, dest string) error {
-	// Read the zipfile and close it when the function completes execution
+func extractTemplate(zipfile, dest string) (string, error) {
 	r, err := zip.OpenReader(zipfile)
 	if err != nil {
-		return fmt.Errorf("Failed to open zip file: %w", err)
+		return "", fmt.Errorf("open zip: %w", err)
 	}
 	defer r.Close()
 
-	// Store the name of the top-level folder for further string processing
 	var topLevelFolder string
 	for _, f := range r.File {
-		parts := strings.Split(f.Name, "/")
+		parts := strings.SplitN(f.Name, "/", 2)
 		if len(parts) > 1 && topLevelFolder == "" {
 			topLevelFolder = parts[0]
+			break
 		}
 	}
-
 	if topLevelFolder == "" {
-		return fmt.Errorf(
-			"Failed to detect the top-level directory in the archive.",
-		)
+		return "", fmt.Errorf("failed to detect the top-level directory in the archive")
 	}
 
-	// Split the top-level folder by the "-" character and store them in
-	// variables for further processing
-	parts := strings.Split(topLevelFolder, "-")
+	parts := strings.SplitN(topLevelFolder, "-", 3)
 	if len(parts) < 2 {
-		return fmt.Errorf("Unexpected folder structure: %s", topLevelFolder)
+		return "", fmt.Errorf("unexpected folder structure: %s", topLevelFolder)
 	}
 	owner := parts[0]
 	repo := parts[1]
 
-	// Ensure the destination directory before the zipfile can be extracted
 	finalDest := filepath.Join(dest, owner, repo)
-	if err := os.MkdirAll(finalDest, os.ModePerm); err != nil {
-		return fmt.Errorf("Failed to create destination directory: %w", err)
+	if err := os.MkdirAll(finalDest, 0o755); err != nil {
+		return "", fmt.Errorf("create destination directory: %w", err)
 	}
 
-	// Extract each file
 	for _, f := range r.File {
-		// Create the correct file path
-		relativePath := strings.TrimPrefix(f.Name, topLevelFolder+"/")
-		filePath := filepath.Join(finalDest, relativePath)
-
-		// If the file is a directory, create it
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(filePath, f.Mode()); err != nil {
-				return fmt.Errorf("Failed to create directory: %w", err)
-			}
-			continue
+		if err := extractOne(f, topLevelFolder, finalDest); err != nil {
+			return "", err
 		}
+	}
+	return finalDest, nil
+}
 
-		// Ensure parent directories exist
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return fmt.Errorf("Failed to create parent directories: %w", err)
-		}
+func extractOne(f *zip.File, topLevelFolder, finalDest string) error {
+	relativePath := strings.TrimPrefix(f.Name, topLevelFolder+"/")
+	if relativePath == "" {
+		return nil
+	}
+	filePath := filepath.Join(finalDest, relativePath)
 
-		// Extract the file
-		srcFile, err := f.Open()
-		if err != nil {
-			return fmt.Errorf("Failed to open file in archive: %w", err)
-		}
-		defer srcFile.Close()
-
-		destFile, err := os.Create(filePath)
-		if err != nil {
-			return fmt.Errorf("Failed to create file: %w", err)
-		}
-
-		if _, err := io.Copy(destFile, srcFile); err != nil {
-			destFile.Close()
-			return fmt.Errorf("Failed to copy file contents: %w", err)
-		}
-
-		destFile.Close()
+	if f.FileInfo().IsDir() {
+		return os.MkdirAll(filePath, f.Mode())
 	}
 
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return fmt.Errorf("create parent dirs: %w", err)
+	}
+
+	srcFile, err := f.Open()
+	if err != nil {
+		return fmt.Errorf("open zip entry %s: %w", f.Name, err)
+	}
+	defer func() { _ = srcFile.Close() }()
+
+	destFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	if err != nil {
+		return fmt.Errorf("create %s: %w", filePath, err)
+	}
+	defer func() { _ = destFile.Close() }()
+
+	if _, err := io.Copy(destFile, srcFile); err != nil {
+		return fmt.Errorf("copy %s: %w", f.Name, err)
+	}
 	return nil
 }

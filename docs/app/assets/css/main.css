@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "./colors.css";
+
+@source "../../../content/**/*";
+
+@theme static {
+  --container-8xl: 90rem;
+}
+
+:root {
+  --ui-container: var(--container-8xl);
+}

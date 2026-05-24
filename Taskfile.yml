@@ -35,7 +35,16 @@ tasks:
     cmds:
       - task: install
       - task: docs:setup
-      - pre-commit install --install-hooks
+      - task: setup:pre-commit
+
+  setup:pre-commit:
+    internal: true
+    sources:
+      - .pre-commit-config.yaml
+    generates:
+      - .git/hooks/pre-commit
+      - .git/hooks/commit-msg
+    cmd: pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg
 
   build:
     desc: Build the binary for the current system architecture.
@@ -91,3 +100,38 @@ tasks:
       - package.json
     generates:
       - pnpm-lock.json
+
+  test:
+    desc: Run the Go test suite.
+    summary: |
+      Run the Go test suite.
+
+      This command runs every package's tests. Useful both during development and as
+      a quick sanity check before opening a pull request.
+    cmd: go test ./...
+
+  clean:
+    desc: Remove build artifacts produced by `task build` and the docs build.
+    summary: |
+      Remove build artifacts.
+
+      Deletes the compiled binary under ./bin and the Nuxt build output under
+      ./docs/.nuxt, ./docs/.output and ./docs/.data. Does not touch dependencies
+      (node_modules) or the user-level terox template cache (use `terox clean` for
+      that).
+    cmds:
+      - rm -rf ./bin
+      - rm -rf ./docs/.nuxt ./docs/.output ./docs/.data
+
+  clean:all:
+    desc: Remove build artifacts AND dependency installs and caches. Slow to recover from.
+    summary: |
+      Remove build artifacts and dependency installs.
+
+      Runs `task clean`, then additionally removes ./docs/node_modules and clears
+      the Go test cache. Recovering requires `task setup` (network + disk). Use this
+      only when you need a true cold start; reach for `task clean` for everyday use.
+    cmds:
+      - task: clean
+      - rm -rf ./docs/node_modules
+      - go clean -testcache

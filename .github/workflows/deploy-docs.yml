@@ -6,25 +6,51 @@ on:
       - main
     paths:
       - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build the Docs
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6.0.2
 
-      - name: Install & Build the Docs
-        uses: withastro/action@v5.2.0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          path: docs
-          package-manager: pnpm
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate static site
+        run: pnpm generate
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.output/public
 
   deploy:
     name: Deploy the Docs
