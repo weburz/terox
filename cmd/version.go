@@ -8,7 +8,7 @@
 package cmd
 
 import (
-	"github.com/Weburz/terox/internal/version"
+	"github.com/weburz/terox/internal/version"
 
 	"github.com/spf13/cobra"
 )

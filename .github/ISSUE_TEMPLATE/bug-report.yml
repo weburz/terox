@@ -1,0 +1,75 @@
+name: Bug Report
+description: File a bug report
+title: "[BUG]: "
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description:
+        Describe the bug clearly. What did you see, and what did you expect to
+        see instead?
+      placeholder: When I run `terox scaffold ...`, the tool does X. I expected
+        it to do Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact commands and flags someone else can run to
+        see the same bug.
+      placeholder: |
+        1. terox scaffold weburz/simple-website-template --output ./test
+        2. Answer the prompts with ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: Command that triggered the bug
+      description: The exact command line you ran, including flags.
+      placeholder: terox scaffold weburz/simple-website-template --output ./test
+        --non-interactive
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description:
+        The platform you saw the bug on. Run `terox version` to find the Terox
+        version, and `go version` if you installed via `go install`.
+      value: |
+        - OS:
+        - Terox version (`terox version`):
+        - Go version, if applicable (`go version`):
+        - Install method (go install / build from source / other):
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Terminal output, error messages, stack traces — anything
+        related. No need for backticks — this auto-formats as a shell block.
+      render: Shell
+
+  - type: textarea
+    id: extras
+    attributes:
+      label: Anything else?
+      description: Template repository being scaffolded, contents of the
+        `terox.json` manifest, or anything else that might help us reproduce.

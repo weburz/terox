@@ -31,7 +31,7 @@ export default defineAppConfig({
     links: [
       {
         icon: "i-simple-icons-github",
-        to: "https://github.com/Weburz/terox",
+        to: "https://github.com/weburz/terox",
         target: "_blank",
         "aria-label": "Terox on GitHub",
       },
@@ -43,7 +43,7 @@ export default defineAppConfig({
     links: [
       {
         icon: "i-simple-icons-github",
-        to: "https://github.com/Weburz/terox",
+        to: "https://github.com/weburz/terox",
         target: "_blank",
         "aria-label": "Terox on GitHub",
       },
@@ -59,7 +59,7 @@ export default defineAppConfig({
     title: "On this page",
     bottom: {
       title: "Page",
-      edit: "https://github.com/Weburz/terox/edit/main/docs/content",
+      edit: "https://github.com/weburz/terox/edit/main/docs/content",
       links: [],
     },
   },

@@ -6,35 +6,39 @@ updates:
     schedule:
       interval: "monthly"
       time: "06:00"
-      timezone: "Asia/Kolkata"
+      timezone: "Europe/Sofia"
     commit-message:
       prefix: "chore(deps): "
     labels:
       - "dependencies"
     open-pull-requests-limit: 3
-    reviewers:
-      - Jarmos-san
+    assignees:
+      - sagar-kap
 
   - package-ecosystem: "gomod"
-    directory: /
+    directory: "/"
     schedule:
       interval: "monthly"
+      time: "06:00"
+      timezone: "Europe/Sofia"
     commit-message:
       prefix: "chore(deps): "
     labels:
       - "dependencies"
     open-pull-requests-limit: 3
-    reviewers:
-      - Jarmos-san
+    assignees:
+      - sagar-kap
 
   - package-ecosystem: "npm"
     directory: "./docs"
     schedule:
       interval: "monthly"
+      time: "06:00"
+      timezone: "Europe/Sofia"
     commit-message:
       prefix: "chore(docs): "
     labels:
       - "dependencies"
     open-pull-requests-limit: 3
-    reviewers:
-      - Jarmos-san
+    assignees:
+      - sagar-kap

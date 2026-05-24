@@ -1,4 +1,4 @@
-module github.com/Weburz/terox
+module github.com/weburz/terox
 
 go 1.23.0
 

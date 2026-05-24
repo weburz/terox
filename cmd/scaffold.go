@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Weburz/terox/internal/template"
+	"github.com/weburz/terox/internal/template"
 )
 
 var (

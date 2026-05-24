@@ -65,10 +65,10 @@ tasks:
         sh: "date -u '+%Y-%m-%d'"
     cmd: |
       go build -ldflags "\
-      -X github.com/Weburz/terox/internal/version.version={{.VERSION}} \
-      -X github.com/Weburz/terox/internal/version.gitVersion={{.GIT_VERSION}} \
-      -X github.com/Weburz/terox/internal/version.gitCommit={{.GIT_COMMIT}} \
-      -X github.com/Weburz/terox/internal/version.buildDate={{.BUILD_DATE}}" \
+      -X github.com/weburz/terox/internal/version.version={{.VERSION}} \
+      -X github.com/weburz/terox/internal/version.gitVersion={{.GIT_VERSION}} \
+      -X github.com/weburz/terox/internal/version.gitCommit={{.GIT_COMMIT}} \
+      -X github.com/weburz/terox/internal/version.buildDate={{.BUILD_DATE}}" \
       -o ./bin/terox
     sources:
       - "*.go"

@@ -13,8 +13,14 @@ the target machine.
 Install (Go 1.23+):
 
 ```bash
-go install github.com/Weburz/terox@latest
+go install github.com/weburz/terox@latest
 ```
+
+> **Heads up:** make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is on
+> your `PATH` or the `terox` command will not be found. Prebuilt binaries
+> for all platforms are coming via GoReleaser — see the
+> [installation docs](https://terox.weburz.com/getting-started/installation)
+> for the full setup.
 
 Create a starter template to play with:
 
@@ -35,7 +41,7 @@ Terox will prompt you for the variables declared in the template's
 You can also scaffold straight from a public GitHub repository:
 
 ```bash
-terox scaffold Weburz/simple-website-template --output ./my-site
+terox scaffold weburz/simple-website-template --output ./my-site
 ```
 
 For CI or scripted use, skip the prompts:

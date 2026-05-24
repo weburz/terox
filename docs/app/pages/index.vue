@@ -29,7 +29,7 @@ useSeoMeta({
           Get started
         </UButton>
         <UButton
-          to="https://github.com/Weburz/terox"
+          to="https://github.com/weburz/terox"
           target="_blank"
           size="xl"
           color="neutral"
