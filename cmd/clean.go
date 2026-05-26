@@ -26,8 +26,8 @@ var cleanCmd = &cobra.Command{
 	Long:    cleanLongUsage,
 	Example: "terox clean\nterox gc\nterox cleanup",
 	Args:    cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		template.Clean()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return template.Clean()
 	},
 }
 

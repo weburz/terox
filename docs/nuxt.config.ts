@@ -39,6 +39,12 @@ export default defineNuxtConfig({
     },
   },
 
+  runtimeConfig: {
+    public: {
+      umamiWebsiteId: "",
+    },
+  },
+
   compatibilityDate: "2026-05-23",
 
   nitro: {
@@ -51,5 +57,11 @@ export default defineNuxtConfig({
 
   icon: {
     provider: "iconify",
+  },
+
+  app: {
+    head: {
+      link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+    },
   },
 });

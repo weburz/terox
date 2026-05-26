@@ -1,5 +1,13 @@
 # Terox
 
+[![Release](https://img.shields.io/github/v/release/weburz/terox?style=flat-square&color=fdd32a&labelColor=2c3c4e)](https://github.com/weburz/terox/releases/latest)
+[![License](https://img.shields.io/github/license/weburz/terox?style=flat-square&color=fdd32a&labelColor=2c3c4e)](./LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/weburz/terox?style=flat-square&logo=go&logoColor=white&color=fdd32a&labelColor=2c3c4e)](./go.mod)
+[![QA Checks](https://img.shields.io/github/actions/workflow/status/weburz/terox/qa-checks.yml?branch=main&style=flat-square&label=QA&labelColor=2c3c4e)](https://github.com/weburz/terox/actions/workflows/qa-checks.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/weburz/terox?style=flat-square)](https://goreportcard.com/report/github.com/weburz/terox)
+
+![Terox mascot: a Go gopher in a hard hat building wooden scaffolding around template files with {{.variable}} tokens floating in the scene](./assets/goterox.png)
+
 Terox is a small, cross-platform CLI for scaffolding new projects from
 templates. Point it at a GitHub repository or a local directory, answer a few
 prompts, and Terox renders a ready-to-edit project into the output folder of
@@ -10,15 +18,36 @@ the target machine.
 
 ## Quickstart
 
-Install (Go 1.23+):
+Install Terox using whichever method matches your platform.
+
+**macOS / Linux (Homebrew):**
+
+```bash
+brew install weburz/tap/terox
+```
+
+**Windows (Scoop):**
+
+```powershell
+scoop bucket add weburz https://github.com/weburz/scoop-bucket
+scoop install weburz/terox
+```
+
+**Direct binary download:**
+
+Grab the archive for your platform from the
+[latest release](https://github.com/weburz/terox/releases/latest),
+extract it, and move the `terox` binary somewhere on your `PATH`.
+
+**From source (Go 1.23+):**
 
 ```bash
 go install github.com/weburz/terox@latest
 ```
 
-> **Heads up:** make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is on
-> your `PATH` or the `terox` command will not be found. Prebuilt binaries
-> for all platforms are coming via GoReleaser — see the
+> **Heads up:** with `go install`, make sure `$(go env GOPATH)/bin`
+> (usually `~/go/bin`) is on your `PATH` or the `terox` command will not be
+> found. See the
 > [installation docs](https://terox.weburz.com/getting-started/installation)
 > for the full setup.
 
