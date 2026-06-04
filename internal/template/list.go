@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/tabwriter"
+	"unicode/utf8"
+
+	"github.com/charmbracelet/x/term"
 )
 
 // List prints the templates already downloaded into the local cache.
@@ -57,10 +59,16 @@ func List() error {
 
 // ListRemote prints the templates available at the root of a remote
 // GitHub repository. The ref must be of the form "owner/repo"; listing
-// a subpath is not supported. Each top-level directory is treated as a
-// candidate template; a terox.json inside it (if present) supplies the
-// description shown in the output.
-func ListRemote(ref string) error {
+// a subpath is not supported. A top-level directory is a template iff
+// it contains a terox.json; the manifest's description, if set, is
+// shown next to the name.
+//
+// When long is true, each template renders as a name line followed by
+// its description wrapped under it. Otherwise the output is a compact
+// two-column table; descriptions are truncated with an ellipsis to fit
+// the terminal width when stdout is a TTY, and left untouched
+// otherwise so piped output stays parseable.
+func ListRemote(ref string, long bool) error {
 	owner, repo, subpath, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -74,22 +82,41 @@ func ListRemote(ref string) error {
 		return err
 	}
 	dirs = filterListableDirs(dirs)
-	if len(dirs) == 0 {
-		fmt.Printf("No templates found in %s/%s.\n", owner, repo)
-		return nil
-	}
 
 	sort.Strings(dirs)
 	entries := make([]catalogueEntry, 0, len(dirs))
 	for _, d := range dirs {
-		desc, err := fetchTemplateDescription(owner, repo, d)
+		m, err := fetchTemplateManifest(owner, repo, d)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			continue
 		}
-		entries = append(entries, catalogueEntry{Name: d, Description: desc})
+		if m == nil {
+			continue
+		}
+		entries = append(entries, catalogueEntry{Name: d, Description: m.Description})
 	}
 
-	printCatalogue(os.Stdout, owner+"/"+repo, entries)
+	if len(entries) == 0 {
+		fmt.Printf("No templates found in %s/%s.\n", owner, repo)
+		return nil
+	}
+
+	width, isTTY := terminalWidth()
+	if long {
+		wrap := width
+		if wrap <= 0 {
+			wrap = 100
+		}
+		printCatalogueLong(os.Stdout, owner+"/"+repo, entries, wrap)
+		return nil
+	}
+
+	truncWidth := 0
+	if isTTY {
+		truncWidth = width
+	}
+	printCatalogueCompact(os.Stdout, owner+"/"+repo, entries, truncWidth)
 	return nil
 }
 
@@ -98,25 +125,14 @@ type catalogueEntry struct {
 	Description string
 }
 
-// nonTemplateDirs is the small denylist of repo-root directories that
-// are almost never templates and would otherwise pollute the listing.
-var nonTemplateDirs = map[string]struct{}{
-	".github":      {},
-	".vscode":      {},
-	"docs":         {},
-	"node_modules": {},
-}
-
-// filterListableDirs drops repo-root entries that are conventionally
-// not templates: dot-prefixed dirs, underscore-prefixed dirs, and a
-// small denylist of common non-template folders.
+// filterListableDirs is a cheap pre-filter that drops dot- and
+// underscore-prefixed dirs before we spend an HTTP roundtrip on each
+// candidate. The authoritative check is the manifest fetch in
+// ListRemote: a dir is a template iff it has a terox.json.
 func filterListableDirs(dirs []string) []string {
 	out := make([]string, 0, len(dirs))
 	for _, d := range dirs {
 		if strings.HasPrefix(d, ".") || strings.HasPrefix(d, "_") {
-			continue
-		}
-		if _, skip := nonTemplateDirs[d]; skip {
 			continue
 		}
 		out = append(out, d)
@@ -159,47 +175,151 @@ func fetchRepoTopLevelDirs(owner, repo string) ([]string, error) {
 	return dirs, nil
 }
 
-// fetchTemplateDescription returns the description from a template's
-// terox.json. A missing manifest is not an error — the template simply
-// has no description.
-func fetchTemplateDescription(owner, repo, dir string) (string, error) {
+// fetchTemplateManifest returns the parsed terox.json for a candidate
+// template directory, or nil if the directory has no manifest (and
+// therefore isn't a template at all).
+func fetchTemplateManifest(owner, repo, dir string) (*Manifest, error) {
 	url := fmt.Sprintf(
 		"https://raw.githubusercontent.com/%s/%s/HEAD/%s/%s",
 		owner, repo, dir, ManifestFilename,
 	)
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("fetch manifest for %s: %w", dir, err)
+		return nil, fmt.Errorf("fetch manifest for %s: %w", dir, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return "", nil
+		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("fetch manifest for %s: HTTP %d", dir, resp.StatusCode)
+		return nil, fmt.Errorf("fetch manifest for %s: HTTP %d", dir, resp.StatusCode)
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("read manifest for %s: %w", dir, err)
+		return nil, fmt.Errorf("read manifest for %s: %w", dir, err)
 	}
 	var m Manifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		return "", fmt.Errorf("parse manifest for %s: %w", dir, err)
+		return nil, fmt.Errorf("parse manifest for %s: %w", dir, err)
 	}
-	return m.Description, nil
+	return &m, nil
 }
 
-func printCatalogue(w io.Writer, ref string, entries []catalogueEntry) {
+// terminalWidth returns the column width of stdout when it is a TTY.
+// (0, false) means stdout is not a terminal (piped or redirected), in
+// which case callers should skip truncation to keep the output
+// parseable.
+func terminalWidth() (int, bool) {
+	fd := os.Stdout.Fd()
+	if !term.IsTerminal(fd) {
+		return 0, false
+	}
+	w, _, err := term.GetSize(fd)
+	if err != nil || w <= 0 {
+		return 0, false
+	}
+	return w, true
+}
+
+// printCatalogueCompact renders entries as a two-column table aligned
+// on the name column. If maxWidth > 0, lines longer than maxWidth are
+// truncated with an ellipsis; maxWidth == 0 disables truncation (used
+// for piped output).
+func printCatalogueCompact(w io.Writer, ref string, entries []catalogueEntry, maxWidth int) {
 	_, _ = fmt.Fprintf(w, "%s:\n", ref)
-	tw := tabwriter.NewWriter(w, 2, 2, 2, ' ', 0)
+
+	nameWidth := 0
 	for _, e := range entries {
-		if e.Description != "" {
-			_, _ = fmt.Fprintf(tw, "  %s\t%s\n", e.Name, e.Description)
-		} else {
-			_, _ = fmt.Fprintf(tw, "  %s\t\n", e.Name)
+		if n := utf8.RuneCountInString(e.Name); n > nameWidth {
+			nameWidth = n
 		}
 	}
-	_ = tw.Flush()
+
+	for _, e := range entries {
+		var line string
+		if e.Description != "" {
+			line = fmt.Sprintf("  %-*s  %s", nameWidth, e.Name, e.Description)
+		} else {
+			line = fmt.Sprintf("  %s", e.Name)
+		}
+		if maxWidth > 0 {
+			line = truncateToWidth(line, maxWidth)
+		}
+		_, _ = fmt.Fprintln(w, line)
+	}
+}
+
+// printCatalogueLong renders each entry as a name line followed by its
+// description wrapped under it. wrapWidth is the absolute column
+// budget; the indent is subtracted internally.
+func printCatalogueLong(w io.Writer, ref string, entries []catalogueEntry, wrapWidth int) {
+	_, _ = fmt.Fprintf(w, "%s:\n", ref)
+
+	const indent = "    "
+	body := wrapWidth - len(indent)
+	if body < 20 {
+		body = 20
+	}
+
+	for _, e := range entries {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintf(w, "  %s\n", e.Name)
+		if e.Description == "" {
+			continue
+		}
+		for _, line := range wordWrap(e.Description, body) {
+			_, _ = fmt.Fprintf(w, "%s%s\n", indent, line)
+		}
+	}
+}
+
+// truncateToWidth returns s shortened to at most max display columns,
+// appending an ellipsis when truncation occurs. Counts runes rather
+// than bytes; multibyte characters are treated as one column each,
+// which is correct for ASCII and "close enough" for typical Latin text
+// in template descriptions.
+func truncateToWidth(s string, max int) string {
+	if max <= 0 || utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	if max == 1 {
+		return "…"
+	}
+	runes := []rune(s)
+	return strings.TrimRight(string(runes[:max-1]), " ") + "…"
+}
+
+// wordWrap breaks s into lines of at most width runes, splitting on
+// whitespace. Words longer than width are emitted on their own line
+// rather than broken mid-character — better to overflow occasionally
+// than to mangle a URL or identifier.
+func wordWrap(s string, width int) []string {
+	if width <= 0 {
+		return []string{s}
+	}
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return nil
+	}
+	var lines []string
+	var cur strings.Builder
+	for _, word := range words {
+		switch {
+		case cur.Len() == 0:
+			cur.WriteString(word)
+		case utf8.RuneCountInString(cur.String())+1+utf8.RuneCountInString(word) <= width:
+			cur.WriteByte(' ')
+			cur.WriteString(word)
+		default:
+			lines = append(lines, cur.String())
+			cur.Reset()
+			cur.WriteString(word)
+		}
+	}
+	if cur.Len() > 0 {
+		lines = append(lines, cur.String())
+	}
+	return lines
 }
