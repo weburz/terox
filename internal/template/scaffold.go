@@ -14,57 +14,118 @@ import (
 
 var templateDir = filepath.Join(xdg.DataHome, "terox")
 
-// Cache resolves a "owner/repo" string to a local template directory,
-// downloading and extracting the zipball if not already cached.
-// When refresh is true, any existing cached copy is removed first so the
-// template is re-downloaded.
-// Returns the absolute path to the cached template root.
-func Cache(repo string, refresh bool) (string, error) {
-	owner, repository, err := splitRepo(repo)
+// Cache resolves a template ref to a local directory, downloading and
+// extracting the zipball if not already cached. The ref is either
+// "owner/repo" (the repo root is the template) or "owner/repo/subpath"
+// (a directory inside the repo is the template — useful for monorepos
+// like weburz/terox-templates).
+//
+// When refresh is true, any existing cached copy of the repo is removed
+// first so the template is re-downloaded.
+// Returns the absolute path to the template directory (the repo root,
+// or the resolved subpath within it).
+func Cache(ref string, refresh bool) (string, error) {
+	owner, repository, subpath, err := splitRef(ref)
 	if err != nil {
 		return "", err
 	}
 
+	repoRef := owner + "/" + repository
 	// GitHub lowercases owner/repo in zipball folder names, so the cached
 	// path is the lowercased version.
 	dir := filepath.Join(templateDir, strings.ToLower(owner), strings.ToLower(repository))
 
 	if refresh {
 		if err := os.RemoveAll(dir); err != nil {
-			return "", fmt.Errorf("refresh cache for %s: %w", repo, err)
+			return "", fmt.Errorf("refresh cache for %s: %w", repoRef, err)
 		}
-	} else {
+	}
+
+	cacheHit := false
+	if !refresh {
 		if _, err := os.Stat(dir); err == nil {
-			return dir, nil
+			cacheHit = true
 		} else if !os.IsNotExist(err) {
 			return "", fmt.Errorf("stat template path %s: %w", dir, err)
 		}
 	}
 
-	if refresh {
-		fmt.Printf("Refreshing cache; downloading %s...\n", repo)
-	} else {
-		fmt.Printf("Template not found locally; downloading %s...\n", repo)
-	}
-	zipPath, err := downloadTemplate(repo)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = os.Remove(zipPath) }()
+	if !cacheHit {
+		if refresh {
+			fmt.Printf("Refreshing cache; downloading %s...\n", repoRef)
+		} else {
+			fmt.Printf("Template not found locally; downloading %s...\n", repoRef)
+		}
+		zipPath, err := downloadTemplate(repoRef)
+		if err != nil {
+			return "", err
+		}
+		defer func() { _ = os.Remove(zipPath) }()
 
-	finalDest, err := extractTemplate(zipPath, templateDir)
-	if err != nil {
-		return "", err
+		if err := extractTemplate(zipPath, dir); err != nil {
+			return "", err
+		}
 	}
-	return finalDest, nil
+
+	return resolveSubpath(dir, subpath, repoRef)
 }
 
-func splitRepo(repo string) (string, string, error) {
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("template ref must be 'owner/repo', got %q", repo)
+// splitRef parses a template ref of the form "owner/repo" or
+// "owner/repo/subpath". The subpath, if present, must be a relative,
+// forward-slash path with no empty, "." or ".." segments.
+func splitRef(ref string) (owner, repo, subpath string, err error) {
+	parts := strings.SplitN(ref, "/", 3)
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", "", fmt.Errorf("template ref must be 'owner/repo' or 'owner/repo/subpath', got %q", ref)
 	}
-	return parts[0], parts[1], nil
+	owner = parts[0]
+	repo = parts[1]
+	if len(parts) == 3 {
+		subpath = parts[2]
+		if subpath == "" {
+			return "", "", "", fmt.Errorf("template ref subpath must not be empty, got %q", ref)
+		}
+		if err := validateSubpath(subpath); err != nil {
+			return "", "", "", fmt.Errorf("invalid subpath in %q: %w", ref, err)
+		}
+	}
+	return owner, repo, subpath, nil
+}
+
+// validateSubpath rejects subpaths that escape the repo root or contain
+// empty/dot segments. The input is always forward-slash separated since
+// it comes from a user-supplied ref, not a filesystem path.
+func validateSubpath(p string) error {
+	if strings.HasPrefix(p, "/") {
+		return fmt.Errorf("subpath must be relative")
+	}
+	for _, seg := range strings.Split(p, "/") {
+		switch seg {
+		case "":
+			return fmt.Errorf("subpath must not contain empty segments")
+		case ".", "..":
+			return fmt.Errorf("subpath segment %q is not allowed", seg)
+		}
+	}
+	return nil
+}
+
+func resolveSubpath(root, subpath, repoRef string) (string, error) {
+	if subpath == "" {
+		return root, nil
+	}
+	dest := filepath.Join(root, filepath.FromSlash(subpath))
+	info, err := os.Stat(dest)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("subpath %q not found in %s", subpath, repoRef)
+		}
+		return "", fmt.Errorf("stat subpath %s: %w", dest, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("subpath %q in %s is not a directory", subpath, repoRef)
+	}
+	return dest, nil
 }
 
 func downloadTemplate(repo string) (string, error) {
@@ -95,10 +156,16 @@ func downloadTemplate(repo string) (string, error) {
 	return tempFile.Name(), nil
 }
 
-func extractTemplate(zipfile, dest string) (string, error) {
+// extractTemplate unzips a GitHub zipball into dest. GitHub zipballs
+// always have a single top-level folder of the form
+// "{owner}-{repo}-{sha-prefix}"; that folder is detected dynamically and
+// stripped from each entry's path. dest is supplied by the caller because
+// the folder name cannot be reliably split back into owner/repo when
+// either contains hyphens (e.g. "weburz-terox-templates-abc123").
+func extractTemplate(zipfile, dest string) error {
 	r, err := zip.OpenReader(zipfile)
 	if err != nil {
-		return "", fmt.Errorf("open zip: %w", err)
+		return fmt.Errorf("open zip: %w", err)
 	}
 	defer func() { _ = r.Close() }()
 
@@ -111,27 +178,19 @@ func extractTemplate(zipfile, dest string) (string, error) {
 		}
 	}
 	if topLevelFolder == "" {
-		return "", fmt.Errorf("failed to detect the top-level directory in the archive")
+		return fmt.Errorf("failed to detect the top-level directory in the archive")
 	}
 
-	parts := strings.SplitN(topLevelFolder, "-", 3)
-	if len(parts) < 2 {
-		return "", fmt.Errorf("unexpected folder structure: %s", topLevelFolder)
-	}
-	owner := parts[0]
-	repo := parts[1]
-
-	finalDest := filepath.Join(dest, owner, repo)
-	if err := os.MkdirAll(finalDest, 0o755); err != nil {
-		return "", fmt.Errorf("create destination directory: %w", err)
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return fmt.Errorf("create destination directory: %w", err)
 	}
 
 	for _, f := range r.File {
-		if err := extractOne(f, topLevelFolder, finalDest); err != nil {
-			return "", err
+		if err := extractOne(f, topLevelFolder, dest); err != nil {
+			return err
 		}
 	}
-	return finalDest, nil
+	return nil
 }
 
 func extractOne(f *zip.File, topLevelFolder, finalDest string) error {

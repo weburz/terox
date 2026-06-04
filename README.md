@@ -67,11 +67,24 @@ Terox will prompt you for the variables declared in the template's
 `terox.json`, render filenames and file contents, and write the result into
 `./my-project`.
 
-You can also scaffold straight from a public GitHub repository:
+You can also scaffold straight from a public GitHub repository. Weburz
+publishes its official templates as a single monorepo at
+[`weburz/terox-templates`](https://github.com/weburz/terox-templates) —
+each top-level directory is a template you can pick by appending its name
+to the repo ref:
 
 ```bash
-terox scaffold weburz/simple-website-template --output ./my-site
+terox scaffold weburz/terox-templates/npm-package --output ./my-package
 ```
+
+To see what's available without leaving the terminal:
+
+```bash
+terox list weburz/terox-templates
+```
+
+A bare `owner/repo` ref (no subpath) still works for single-template
+repositories like `weburz/simple-website-template`.
 
 For CI or scripted use, skip the prompts:
 
@@ -135,9 +148,9 @@ turning any GitHub repo into a quick `git clone` without the history.
 
 | Command   | What it does                                                           |
 | --------- | ---------------------------------------------------------------------- |
-| `scaffold <ref>` | Render a template into `--output`. `<ref>` is `owner/repo` or a local path. |
+| `scaffold <ref>` | Render a template into `--output`. `<ref>` is `owner/repo`, `owner/repo/subpath` (for template monorepos), or a local path. |
 | `create <name>`  | Write a starter template directory you can edit and publish.      |
-| `list`           | List templates cached locally.                                     |
+| `list [owner/repo]` | List templates cached locally, or browse the templates in a remote repository. |
 | `clean`          | Delete the local template cache.                                   |
 | `version`        | Print the build version.                                           |
 
