@@ -18,15 +18,18 @@ var (
 )
 
 var scaffoldCmd = &cobra.Command{
-	Use:   "scaffold <owner/repo|path>",
+	Use:   "scaffold <owner/repo[/subpath]|path>",
 	Short: "Scaffold a project from a template",
 	Long: `Scaffold a project from a template.
 
-The template can be a GitHub repository (owner/repo) or a local directory path.
-If the template contains a terox.json manifest, you will be prompted for the
-declared variables and the template will be rendered into --output. If no
-manifest is present, the template files are copied as-is.`,
+The template can be a GitHub repository (owner/repo), a directory inside a
+GitHub repository (owner/repo/subpath, useful for template monorepos), or a
+local directory path. If the template contains a terox.json manifest, you
+will be prompted for the declared variables and the template will be
+rendered into --output. If no manifest is present, the template files are
+copied as-is.`,
 	Example: `  terox scaffold Weburz/simple-website-template --output ./my-site
+  terox scaffold weburz/terox-templates/nuxt-starter --output ./my-site
   terox scaffold ./my-local-template --output ./my-site
   terox scaffold Weburz/foo --set project_name=bar --set author=me --non-interactive`,
 	Args: cobra.ExactArgs(1),
