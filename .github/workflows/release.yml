@@ -20,7 +20,7 @@ jobs:
       build_date: ${{ steps.meta.outputs.build_date }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: meta
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -64,7 +64,7 @@ jobs:
           - os: windows
             arch: arm64
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -218,7 +218,7 @@ jobs:
           end
           EOF
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: weburz/homebrew-tap
           path: tap
@@ -299,7 +299,7 @@ jobs:
           }
           EOF
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: weburz/scoop-bucket
           path: bucket
