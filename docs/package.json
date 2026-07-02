@@ -18,8 +18,8 @@
     "@iconify-json/simple-icons": "^1.2.84",
     "@nuxt/content": "^3.14.0",
     "@nuxt/ui": "^4.8.1",
-    "nuxt": "^4.4.6",
-    "tailwindcss": "^4.3.0"
+    "nuxt": "^4.4.8",
+    "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
