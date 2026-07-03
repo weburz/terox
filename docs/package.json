@@ -28,7 +28,7 @@
     "prettier": "^3.8.1",
     "prettier-plugin-organize-imports": "^4.3.0",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.3"
+    "vue-tsc": "^3.3.6"
   },
   "packageManager": "pnpm@11.1.3"
 }
