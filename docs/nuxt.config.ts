@@ -7,11 +7,6 @@ export default defineNuxtConfig({
 
   css: ["~/assets/css/main.css"],
 
-  site: {
-    url: "https://terox.weburz.com",
-    name: "Terox",
-  },
-
   ui: {
     theme: {
       colors: [
