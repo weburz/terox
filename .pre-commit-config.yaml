@@ -28,7 +28,7 @@ repos:
         name: lint git-commit messages
 
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.2.2
+    rev: v2.15.0
     hooks:
       - id: golangci-lint
         name: lint Go source code
