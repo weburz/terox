@@ -3,6 +3,7 @@ package template
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPrompt_NonInteractive_UsesDefaults(t *testing.T) {
@@ -87,5 +88,56 @@ func TestPrompt_NoVariables(t *testing.T) {
 	}
 	if len(answers) != 0 {
 		t.Errorf("expected empty answers, got %+v", answers)
+	}
+}
+
+func TestPrompt_NonInteractive_DefaultRendersBuiltins(t *testing.T) {
+	m := &Manifest{Variables: []Variable{
+		{Name: "LicenseYear", Default: "{{ .Year }}"},
+		{Name: "Copyright", Default: "(c) {{ .Year }} Weburz"},
+	}}
+	answers, err := Prompt(m, PromptOptions{
+		NonInteractive: true,
+		Now:            time.Date(2031, time.March, 4, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+	if answers["LicenseYear"] != "2031" {
+		t.Errorf("LicenseYear = %q, want %q", answers["LicenseYear"], "2031")
+	}
+	if answers["Copyright"] != "(c) 2031 Weburz" {
+		t.Errorf("Copyright = %q, want %q", answers["Copyright"], "(c) 2031 Weburz")
+	}
+}
+
+func TestPrompt_NonInteractive_PresetIsNotRendered(t *testing.T) {
+	// Values passed via --set are taken literally, even if they look like
+	// template syntax; only manifest defaults are rendered.
+	m := &Manifest{Variables: []Variable{
+		{Name: "LicenseYear", Default: "{{ .Year }}"},
+	}}
+	answers, err := Prompt(m, PromptOptions{
+		NonInteractive: true,
+		Preset:         map[string]string{"LicenseYear": "{{ .Year }}"},
+	})
+	if err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+	if answers["LicenseYear"] != "{{ .Year }}" {
+		t.Errorf("preset should be kept verbatim, got %q", answers["LicenseYear"])
+	}
+}
+
+func TestPrompt_InvalidDefaultTemplateErrors(t *testing.T) {
+	m := &Manifest{Variables: []Variable{
+		{Name: "LicenseYear", Default: "{{ .Year"},
+	}}
+	_, err := Prompt(m, PromptOptions{NonInteractive: true})
+	if err == nil {
+		t.Fatal("expected error for unparsable default")
+	}
+	if !strings.Contains(err.Error(), "LicenseYear") {
+		t.Errorf("error should name the variable, got: %v", err)
 	}
 }

@@ -2,7 +2,9 @@ package template
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 )
@@ -10,6 +12,18 @@ import (
 type PromptOptions struct {
 	Preset         map[string]string
 	NonInteractive bool
+	// Now is the time used for built-in default variables such as .Year.
+	// The zero value means time.Now().
+	Now time.Time
+}
+
+// defaultBuiltins returns the values a manifest default can reference, e.g.
+// "default": "{{ .Year }}". Defaults are rendered against these only, not
+// against other answers, so interactive and non-interactive runs agree.
+func defaultBuiltins(now time.Time) map[string]string {
+	return map[string]string{
+		"Year": strconv.Itoa(now.Year()),
+	}
 }
 
 func Prompt(m *Manifest, opts PromptOptions) (map[string]string, error) {
@@ -17,6 +31,12 @@ func Prompt(m *Manifest, opts PromptOptions) (map[string]string, error) {
 	for k, v := range opts.Preset {
 		answers[k] = v
 	}
+
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	builtins := defaultBuiltins(now)
 
 	stringPtrs := make(map[string]*string)
 	boolPtrs := make(map[string]*bool)
@@ -27,6 +47,12 @@ func Prompt(m *Manifest, opts PromptOptions) (map[string]string, error) {
 		if _, set := answers[v.Name]; set {
 			continue
 		}
+
+		def, err := renderString(v.Default, builtins)
+		if err != nil {
+			return nil, fmt.Errorf("render default for %q: %w", v.Name, err)
+		}
+		v.Default = def
 
 		if opts.NonInteractive {
 			if v.Default == "" && v.Type != "bool" && len(v.Choices) == 0 {
