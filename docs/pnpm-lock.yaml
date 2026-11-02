@@ -20,8 +20,8 @@ importers:
   .:
     dependencies:
       '@iconify-json/lucide':
-        specifier: ^1.2.108
-        version: 1.2.147
+        specifier: ^1.2.149
+        version: 1.2.149
       '@iconify-json/simple-icons':
         specifier: ^1.2.101
         version: 1.2.101
@@ -684,8 +684,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@iconify-json/lucide@1.2.147':
-    resolution: {integrity: sha512-7Qqa/joSBeUxihWsQJx5nKcqMWtV3YrH90Jldxcx4J9ciTLavRUlpexQwRTcx9dcb7CJpISfjZTj42zD/30sqA==}
+  '@iconify-json/lucide@1.2.149':
+    resolution: {integrity: sha512-5NG9YdbtRS03hG1A+EIE6nLhhdAYsf0mKu1ZRi6kLMlCG8DxmDsRM6DAhwlNMLiSiQKFbHpKTJ2VddZdwUkUyw==}
 
   '@iconify-json/simple-icons@1.2.101':
     resolution: {integrity: sha512-MXJkMZDancJ/9I+Bgdthi9kXvn3AwWStxoTHwEPwAFQ9kMLBASO1BSstg52fNtjXeizm1Wi91R+QnWxNGkWHPQ==}
@@ -4708,8 +4708,8 @@ packages:
   property-information@7.2.0:
     resolution: {integrity: sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg==}
 
-  prosemirror-changeset@2.4.4:
-    resolution: {integrity: sha512-Gyuz9jYdrAeA9I7AholyOes9KUmv/lEwsC5O9s5xF5VB3EgTPsXMGUxz4+H1B+wKVPdZbvRcg1Cp3x8qX+8ofA==}
+  prosemirror-changeset@2.4.5:
+    resolution: {integrity: sha512-hv3Qhsn5GyoferiBqL8euGvj3Y8Z+2Ef75NnPLChr5DTWArpPAjK6F96Yc0iM7SBYNDPQbQaA+xEtAR8NuWo9A==}
 
   prosemirror-commands@1.7.2:
     resolution: {integrity: sha512-q6Q6szxqdu9Xd6EcdKsqXghu5nQdZTpB4Q9yd04WRc7/jt763e/rT60Owh0L1GYY+T46o5rD+9lEN36dZS43tw==}
@@ -6536,7 +6536,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@iconify-json/lucide@1.2.147':
+  '@iconify-json/lucide@1.2.149':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -8255,7 +8255,7 @@ snapshots:
 
   '@tiptap/pm@3.32.0':
     dependencies:
-      prosemirror-changeset: 2.4.4
+      prosemirror-changeset: 2.4.5
       prosemirror-commands: 1.7.2
       prosemirror-dropcursor: 1.8.4
       prosemirror-gapcursor: 1.4.1
@@ -11563,7 +11563,7 @@ snapshots:
 
   property-information@7.2.0: {}
 
-  prosemirror-changeset@2.4.4:
+  prosemirror-changeset@2.4.5:
     dependencies:
       prosemirror-transform: 1.12.4
 
